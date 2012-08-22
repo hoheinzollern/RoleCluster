@@ -1,5 +1,6 @@
 package org.processmining.plugins;
 
+import it.processmining.clustering.hierarchical.HACluster;
 import it.processmining.clustering.ui.DendrogramWidget;
 
 import java.awt.GridLayout;
@@ -23,19 +24,19 @@ public class RoleClusterVisualizer extends JPanel {
 
 	private static final long serialVersionUID = 5394844159308978486L;
 	
-	private RoleCluster cluster;
+	private HACluster cluster;
 
 	@PluginVariant(requiredParameterLabels = { 0 })
-	public static JComponent visualize(PluginContext context, RoleCluster cluster) {
+	public static JComponent visualize(PluginContext context, HACluster cluster) {
 		return new RoleClusterVisualizer(cluster);
 	}
 	
-	public RoleClusterVisualizer(RoleCluster cluster) {
+	public RoleClusterVisualizer(HACluster cluster) {
 		this.cluster = cluster;
 		
 		setLayout(new GridLayout(1, 1));
 		
-		DendrogramWidget visualizer = new DendrogramWidget(cluster.getRoot());
+		DendrogramWidget visualizer = new DendrogramWidget(cluster);
 		add(visualizer);
 	}
 

@@ -1,5 +1,12 @@
 package it.processmining.clustering.hierarchical;
 
+/**
+ * Represents a node of the hierarchical binary tree. When it is a leaf, it represents an
+ * instance given to the clusterer, otherwise it represents the centroid of the two childs.
+ * 
+ * @author Alessandro Bruni <alessandro.bruni@gmail.com>
+ *
+ */
 public class HATreeNode {
 	private int id;
 	private HATreeNode parent;
@@ -10,7 +17,17 @@ public class HATreeNode {
 	private double[] data;
 	private String name;
 	private int size;
-
+	
+	/**
+	 * Public constructor, builds a new node, and computes fields such as size and maxDistance
+	 *  
+	 * @param id
+	 * @param name
+	 * @param left
+	 * @param right
+	 * @param distance
+	 * @param data
+	 */
 	public HATreeNode(int id, String name, HATreeNode left, HATreeNode right, double distance, double[] data) {
 		this.id = id;
 		this.name = name;
@@ -19,18 +36,25 @@ public class HATreeNode {
 		this.distance = distance;
 		this.maxDistance = distance;
 		this.data = data;
-
-		this.size = 1;
 		
 		if (!isLeaf()) {
 			left.parent = this;
 			right.parent = this;
-			this.size += left.size;
+			this.size = left.size;
 			this.size += right.size;
 			this.maxDistance += Math.max(left.maxDistance, right.maxDistance);
+		} else {
+			this.size = 1;
 		}
 	}
 	
+	/**
+	 * Builds a leaf node
+	 * 
+	 * @param id
+	 * @param name
+	 * @param data
+	 */
 	public HATreeNode(int id, String name, double[] data) {
 		this(id, name, null, null, 0, data);
 	}

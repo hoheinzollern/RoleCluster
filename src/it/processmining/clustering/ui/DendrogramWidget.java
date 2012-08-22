@@ -1,5 +1,6 @@
 package it.processmining.clustering.ui;
 
+import it.processmining.clustering.hierarchical.HACluster;
 import it.processmining.clustering.hierarchical.HATreeNode;
 
 import java.awt.Color;
@@ -23,6 +24,7 @@ import org.apache.batik.svggen.SVGGraphics2D;
 import org.apache.batik.svggen.SVGGraphics2DIOException;
 import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
+
 
 /**
  * This is the widget for the representation of a dendrogram
@@ -59,11 +61,11 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 	public static final float infoDendrogramFontSize = 16f;
 
 	// internal elements
-	private HATreeNode root;
+	private HACluster cluster;
+	
 	private int numberOfElements;
 	private Vector<Integer> coordinates;
 	private FontMetrics fm;
-	private boolean firstPrint = true;
 
 	private int currentX;
 	private int currentY;
@@ -71,7 +73,7 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 	private int offsetX = 10;
 	private int offsetY = 10;
 
-	private int spaceForLabelX = 100;
+	private int spaceForLabelX = 200;
 	private int spaceForLabelY = 0;
 
 	DecimalFormat df = new DecimalFormat("#.###");
@@ -93,14 +95,21 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 	 * @param root
 	 *            the root of the cluster
 	 */
-	public DendrogramWidget(HATreeNode root) {
-		this.root = root;
-		this.numberOfElements = root.getSize();
+	public DendrogramWidget(HACluster cluster) {
+		this.cluster = cluster;
+		this.numberOfElements = cluster.getRootNode().getSize();
 		coordinates = new Vector<Integer>();
 
 		addMouseListener(this);
 		addMouseMotionListener(this);
 		addMouseWheelListener(this);
+		
+
+		offsetX = (getWidth() / 2) - (spaceForLabelX / 2) - (matrixBlockSize * numberOfElements / 2)
+				- (dendroWidth / 2);
+		offsetY = (getHeight() / 2) - (spaceForLabelY / 2) - (matrixBlockSize * numberOfElements / 2);
+		
+		System.err.println("Offest Y : " + offsetY);
 	}
 
 	/**
@@ -171,7 +180,7 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 	 * @param filename
 	 *            where to save the image
 	 */
-	public void getSVG(String filename) {
+	public void saveToSVG(String filename) {
 		DOMImplementation domImpl = GenericDOMImplementation.getDOMImplementation();
 		String svgNS = "http://www.w3.org/2000/svg";
 		Document document = domImpl.createDocument(svgNS, "svg", null);
@@ -192,16 +201,6 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 			fm = g.getFontMetrics();
 		}
 
-		// let's center the dendrogram in the window
-		if (firstPrint) {
-			offsetX = (getWidth() / 2) - (spaceForLabelX / 2) - (matrixBlockSize * numberOfElements / 2)
-					- (dendroWidth / 2);
-			offsetY = (getHeight() / 2) - (spaceForLabelY / 2) - (matrixBlockSize * numberOfElements / 2);
-			matrixBeginX = offsetX + spaceForLabelX;
-			matrixBeginY = offsetY + spaceForLabelY;
-			firstPrint = false;
-		}
-
 		currentX = offsetX + spaceForLabelX + matrixBlockSize * numberOfElements;
 		currentY = offsetY + spaceForLabelY + matrixBlockSize / 2;
 
@@ -209,15 +208,15 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 
 		drawBackground(g, getWidth(), getHeight());
 		drawDendrogram(g);
-		//drawMatrix(g);
+		drawMatrix(g);
 
 		if (mouseOverDendrogram) {
 			drawOverlayDendrogram(g);
 		}
 
-		/*if (mouseOverMatrix) {
+		if (mouseOverMatrix) {
 			drawOverlayMatrix(g);
-		}*/
+		}
 
 		g.dispose();
 
@@ -250,7 +249,6 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 	 * 
 	 * @param g
 	 */
-	/*
 	private void drawOverlayMatrix(Graphics g) {
 		int xCoord = (mouseMovingX - matrixBeginX) / matrixBlockSize;
 		int yCoord = (mouseMovingY - matrixBeginY) / matrixBlockSize;
@@ -286,7 +284,7 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 		}
 
 		int infoBoxOffset = (xCoord * matrixBlockSize);
-		Double dis = dm.getValue(coordinates.get(xCoord), coordinates.get(yCoord));
+		Double dis = cluster.getNormalizedDistance(coordinates.get(xCoord), coordinates.get(yCoord));
 		String textLine1 = "Similarity: " + df.format(1 - dis);
 		String textLine2 = "Distance: " + df.format(dis);
 		int infoBoxWidth = fm.stringWidth(textLine1);
@@ -307,13 +305,12 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 				(int) (matrixBeginY + (yCoord * matrixBlockSize) + (matrixBlockSize * .75) + 17));
 		g.drawString(textLine2, (int) (matrixBeginX + infoBoxOffset + (matrixBlockSize * .75) + 10),
 				(int) (matrixBeginY + (yCoord * matrixBlockSize) + (matrixBlockSize * .75) + 32));
-	}*/
+	}
 
 	/**
 	 * 
 	 * @param g
 	 */
-	/*
 	private void drawMatrix(Graphics g) {
 		// draw the background
 		g.setColor(background);
@@ -326,7 +323,7 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 		for (int a = 0; a < numberOfElements; a++) {
 			y = 0;
 			for (int b = 0; b < numberOfElements; b++) {
-				Double distanceValue = dm.getValue(coordinates.get(a), coordinates.get(b));
+				Double distanceValue = cluster.getNormalizedDistance(coordinates.get(a), coordinates.get(b));
 				g.setColor(measureColor(distanceValue));
 				g.fillRect(getMatrixBorderW() + x, getMatrixBorderN() + y, matrixBlockSize, matrixBlockSize);
 				y += matrixBlockSize;
@@ -337,18 +334,17 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 		// draw the labels
 		g.setColor(new Color(172, 229, 254, (int) (255 * (.8))));
 		for (int i = 0; i < numberOfElements; i++) {
-			String s = dm.getElements().get(coordinates.get(i)).getName();
+			String s = cluster.getInstance(coordinates.get(i)).getName();
 			int internalOffsetX = spaceForLabelX - fm.stringWidth(s) - 5;
 			// horizontal labels
 			g.drawString(s, offsetX + internalOffsetX,
-					(int) (offsetY + spaceForLabelY + (matrixBlockSize / 2) + 5 + (i * matrixBlockSize)));
+					offsetY + spaceForLabelY + (matrixBlockSize / 2) + 5 + (i * matrixBlockSize));
 			// vertical labels
 			//			g2d.rotate(Math.PI*3/2);
 			//			g.drawString(s, -(offsetY + internalOffsetY), (int) (offsetX + spaceForLabelX + (matrixBlockSize/2) + (i*matrixBlockSize) + 5));
 			//			g2d.rotate(Math.PI/2);
 		}
 	}
-	*/
 
 	/**
 	 * 
@@ -367,12 +363,12 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 	 */
 	private void drawDendrogram(Graphics g) {
 		// draw the background
-		g.setColor(background);
-		g.fillRect(spaceForLabelX + offsetX + numberOfElements * matrixBlockSize, 0, dendroWidth + 10, spaceForLabelY
-				+ offsetY + numberOfElements * matrixBlockSize + 20);
+		g.setColor(scaleColor);
+		g.fillRect(spaceForLabelX + offsetX + numberOfElements * matrixBlockSize, offsetY, dendroWidth + 10,
+			spaceForLabelY + numberOfElements * matrixBlockSize + 20);
 
-		// paint of the dendrogram
-		drawDendrogram(root, g);
+		// draw the dendrogram
+		drawDendrogramNode(cluster.getRootNode(), g);
 
 		// draw the dendrogram scale
 		g.setColor(scaleColor);
@@ -397,7 +393,7 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 	 * @return the coordinates of the point connecting the children below the
 	 *         current cluster
 	 */
-	public Point drawDendrogram(HATreeNode node, Graphics g) {
+	public Point drawDendrogramNode(HATreeNode node, Graphics g) {
 
 		if (node.isLeaf()) {
 
@@ -406,6 +402,7 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 			String label = node.getName() + " "  + node.getId();
 
 			int width = fm.stringWidth(label);
+			g.setColor(DendrogramWidget.labelColor);
 			g.drawString(label, x - width - 3, y - 3);
 			return new Point(x, y);
 
@@ -416,8 +413,8 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 			HATreeNode leftChild = node.getLeft();
 			HATreeNode rightChild = node.getRight();
 
-			Point left = drawDendrogram(leftChild, g);
-			Point right = drawDendrogram(rightChild, g);
+			Point left = drawDendrogramNode(leftChild, g);
+			Point right = drawDendrogramNode(rightChild, g);
 
 			g.setColor(DendrogramWidget.dendroColor);
 
@@ -436,7 +433,7 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 			}
 
 			// calculate the length of the line, proportional to the distance of the cluster
-			double clusterDistance = node.getMaxDistance() / root.getMaxDistance();
+			double clusterDistance = node.getMaxDistance() / cluster.getRootNode().getMaxDistance();
 			double lineLength = getMatrixBorderE() + (int) (DendrogramWidget.dendroWidth * clusterDistance) - maxX;
 
 			// draw the three lines
