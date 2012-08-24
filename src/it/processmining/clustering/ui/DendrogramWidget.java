@@ -86,6 +86,8 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 	private boolean mouseOverMatrix = false;
 	private boolean mouseOverDendrogram = false;
 	private int motionPixels = 0;
+	
+	private double currentValue;
 
 	/**
 	 * Widget constructor
@@ -110,6 +112,13 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 		offsetY = (getHeight() / 2) - (spaceForLabelY / 2) - (matrixBlockSize * numberOfElements / 2);
 		
 		System.err.println("Offest Y : " + offsetY);
+	}
+	
+	/**
+	 * @return the current cut value
+	 */
+	public double getCurrentValue() {
+		return currentValue;
 	}
 
 	/**
@@ -230,8 +239,8 @@ public class DendrogramWidget extends JComponent implements MouseListener, Mouse
 		float defaultFontSize = g.getFont().getSize();
 		g.setFont(g.getFont().deriveFont(infoDendrogramFontSize));
 
-		Double value = (double) ((double) (mouseMovingX - getMatrixBorderE()) / dendroWidth);
-		String valueString = df.format(value);
+		currentValue = (double) ((double) (mouseMovingX - getMatrixBorderE()) / dendroWidth);
+		String valueString = df.format(currentValue);
 
 		g.setColor(infoDendrogramBackground);
 		g.fillRoundRect(mouseMovingX, getMatrixBorderN() - 30, fm.stringWidth(valueString) + 30, 30, 10, 10);
